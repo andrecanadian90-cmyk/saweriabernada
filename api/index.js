@@ -8,12 +8,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Otomatis membaca database KV milik Vercel Anda
+// Mengambil variabel koneksi dari Upstash (atau KV Vercel jika ada)
 let redisClient = null;
-if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+if (redisUrl && redisToken) {
   redisClient = new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
+    url: redisUrl,
+    token: redisToken,
   });
 }
 
@@ -25,7 +28,7 @@ app.post('/api/saweria/webhook/:secretKey', async (req, res) => {
   if (!redisClient) {
     return res.status(500).json({ 
       ok: false, 
-      error: 'Vercel KV belum terhubung. Silakan buat & hubungkan database KV di dashboard Vercel.' 
+      error: 'Redis/KV belum terhubung. Silakan hubungkan database Upstash atau KV di dashboard Vercel Anda.' 
     });
   }
 
@@ -58,6 +61,7 @@ app.post('/api/saweria/webhook/:secretKey', async (req, res) => {
     await redisClient.set(redisKey, JSON.stringify(donationsList));
     return res.status(200).json({ ok: true });
   } catch (error) {
+    console.error('Error webhook:', error);
     return res.status(500).json({ ok: false, error: 'Database error: ' + error.message });
   }
 });
@@ -68,7 +72,10 @@ app.get('/api/saweria/donations/:secretKey', async (req, res) => {
   const since = Number(req.query.since) || 0;
 
   if (!redisClient) {
-    return res.status(500).json({ ok: false, error: 'Vercel KV belum terhubung.' });
+    return res.status(500).json({ 
+      ok: false, 
+      error: 'Redis/KV belum terhubung.' 
+    });
   }
 
   const redisKey = `donations:${secretKey}`;
@@ -80,8 +87,13 @@ app.get('/api/saweria/donations/:secretKey', async (req, res) => {
     }
 
     const newDonations = donationsList.filter(d => d.ts > since);
-    return res.status(200).json({ ok: true, donations: newDonations });
+
+    return res.status(200).json({
+      ok: true,
+      donations: newDonations
+    });
   } catch (error) {
+    console.error('Error API GET:', error);
     return res.status(500).json({ ok: false, error: 'Database error' });
   }
 });
