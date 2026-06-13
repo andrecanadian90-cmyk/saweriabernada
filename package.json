@@ -1,0 +1,11 @@
+{
+  "name": "saweria-proxy-vercel",
+  "version": "1.0.0",
+  "description": "Backend proxy untuk menghubungkan Saweria Webhook ke game Roblox di Vercel",
+  "main": "api/index.js",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "@upstash/redis": "^1.28.4"
+  }
+}
